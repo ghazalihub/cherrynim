@@ -17,6 +17,7 @@ proc time*(lm: LogManager): string =
 
 proc error*(lm: LogManager, msg: string, context = "", severity = "INFO") =
   ## Logs an error message.
+  if lm == nil: return
   let entry = lm.time() & " " & context & " " & severity & " " & msg
   if lm.screen:
     echo entry
@@ -25,9 +26,13 @@ proc error*(lm: LogManager, msg: string, context = "", severity = "INFO") =
     f.writeLine(entry)
     f.close()
 
+proc logMsg*(lm: LogManager, msg: string, context = "", severity = "INFO") =
+  ## Alias for error.
+  lm.error(msg, context, severity)
+
 proc access*(lm: LogManager) =
   ## Logs an access message in Apache/NCSA Combined Log format.
-  if request == nil or response == nil: return
+  if lm == nil or request == nil or response == nil: return
 
   let remote = request.headers.getOrDefault("X-Forwarded-For")
   let h = if remote == "": "127.0.0.1" else: remote

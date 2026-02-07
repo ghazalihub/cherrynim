@@ -3,7 +3,10 @@ import os, times, asyncdispatch, tables
 import ./core, ./wspbus, ./logging
 
 type
-  Autoreloader* = ref object
+  SimplePlugin* = ref object of RootRef
+    bus*: Bus
+
+  Autoreloader* = ref object of SimplePlugin
     files*: seq[string]
     mtimes*: Table[string, float]
     frequency*: int

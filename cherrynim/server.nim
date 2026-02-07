@@ -24,6 +24,15 @@ proc handleRequest*(req: asynchttpserver.Request): Future[void] {.async, gcsafe.
   if engine == nil:
     engine = Bus(listeners: initTable[string, seq[BusCallback]]())
   let path = req.url.path
+
+  # Check for grafts first
+  if tree != nil:
+    for graftPath, handler in tree.grafts:
+      if path.startsWith(graftPath):
+        # We need a proper way to run grafts.
+        # For now, let's keep it simple.
+        discard
+
   let app = tree.apps.getOrDefault("") # Simple for now
 
   request = newRequest()

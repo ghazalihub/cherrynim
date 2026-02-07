@@ -9,16 +9,16 @@ type
     joke*: JokePage
     links*: LinksPage
 
-proc index*(h: HomePage): Future[string] {.async, gcsafe.} =
+method index*(h: HomePage): Future[string] {.async, base, gcsafe.} =
   return "Home page. <a href=\"/joke/\">Joke</a>"
 
-proc index*(j: JokePage): Future[string] {.async, gcsafe.} =
+method index*(j: JokePage): Future[string] {.async, base, gcsafe.} =
   return "Perl file joke."
 
-proc index*(l: LinksPage): Future[string] {.async, gcsafe.} =
+method index*(l: LinksPage): Future[string] {.async, base, gcsafe.} =
   return "Links page."
 
-proc index*(e: ExtraLinksPage): Future[string] {.async, gcsafe.} =
+method index*(e: ExtraLinksPage): Future[string] {.async, base, gcsafe.} =
   return "Extra links."
 
 proc main() =
@@ -29,6 +29,9 @@ proc main() =
   let links = LinksPage(extra: extra)
   links.handlers = initTable[string, Handler]()
   links.exposeHandlers("index")
+  # Manual sub-registration
+  links.handlers["extra"] = proc(p: Table[string, string]): Future[string] {.async, gcsafe.} =
+    return await dispatch(links.extra, @[], p)
 
   let joke = JokePage()
   joke.handlers = initTable[string, Handler]()
@@ -37,6 +40,10 @@ proc main() =
   let root = HomePage(joke: joke, links: links)
   root.handlers = initTable[string, Handler]()
   root.exposeHandlers("index")
+  root.handlers["joke"] = proc(p: Table[string, string]): Future[string] {.async, gcsafe.} =
+    return await dispatch(root.joke, @[], p)
+  root.handlers["links"] = proc(p: Table[string, string]): Future[string] {.async, gcsafe.} =
+    return await dispatch(root.links, @[], p)
 
   quickstart(root)
 

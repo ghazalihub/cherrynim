@@ -49,7 +49,9 @@ var sessions* {.threadvar.}: Table[string, Table[string, string]]
 
 proc sessionsTool*(req: core.Request) {.async, gcsafe.} =
   ## Tool that manages user sessions via cookies.
-  ## Generates a new session ID if one isn't present or valid.
+  let storageType = req.app.findConfig(req.pathInfo, "tools.sessions.storage_type", "ram")
+  let storagePath = req.app.findConfig(req.pathInfo, "tools.sessions.storage_path", "sessions")
+
   let cookies = req.headers.getOrDefault("Cookie")
   var sid = ""
   if cookies != "":
@@ -58,16 +60,30 @@ proc sessionsTool*(req: core.Request) {.async, gcsafe.} =
       if kv.len == 2 and kv[0].strip() == "session_id":
         sid = kv[1].strip()
 
-  if sessions.len == 0:
-    sessions = initTable[string, Table[string, string]]()
+  if storageType == "file":
+    if not dirExists(storagePath): createDir(storagePath)
+    if sid == "" or not fileExists(storagePath / sid):
+      randomize()
+      sid = "sid_" & $(now().toTime().toUnix()) & "_" & $rand(1000000000)
+      writeFile(storagePath / sid, "{}")
 
-  if sid == "" or not sessions.contains(sid):
-    randomize()
-    sid = "sid_" & $(now().toTime().toUnix()) & "_" & $rand(1000000000)
-    sessions[sid] = initTable[string, string]()
+    let content = readFile(storagePath / sid)
+    req.session = content.parseJson().to(Table[string, string])
+    req.params["session_id"] = sid
+    # We should save back in afterHandler
+    req.hooks[afterErrorResponse].add(Hook(callback: (proc() {.async, gcsafe.} =
+      writeFile(storagePath / sid, (%* req.session).pretty())), priority: 100))
+  else:
+    if sessions.len == 0:
+      sessions = initTable[string, Table[string, string]]()
 
-  req.session = sessions[sid]
-  req.params["session_id"] = sid
+    if sid == "" or not sessions.contains(sid):
+      randomize()
+      sid = "sid_" & $(now().toTime().toUnix()) & "_" & $rand(1000000000)
+      sessions[sid] = initTable[string, string]()
+
+    req.session = sessions[sid]
+    req.params["session_id"] = sid
 
 # 4. Auth Tools
 proc basicAuthTool*(req: core.Request, users: Table[string, string]) {.async, gcsafe.} =

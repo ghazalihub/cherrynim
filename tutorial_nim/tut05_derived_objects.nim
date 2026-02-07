@@ -4,7 +4,7 @@ type
   Page = ref object of Controller
     title*: string
 
-proc index*(h: Page): Future[string] {.async, gcsafe.} =
+method index*(h: Page): Future[string] {.async, base, gcsafe.} =
   return h.title
 
 type
@@ -20,6 +20,9 @@ proc main() =
   let root = HomePage(title: "Home", another: another)
   root.handlers = initTable[string, Handler]()
   root.exposeHandlers("index")
+  root.handlers["another"] = proc(p: Table[string, string]): Future[string] {.async, gcsafe.} =
+    return await dispatch(root.another, @[], p)
+
   quickstart(root)
 
 if isMainModule: main()

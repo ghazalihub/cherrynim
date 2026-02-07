@@ -16,19 +16,6 @@ macro dispatch*(obj: any, segments: seq[string], params: Table[string, string]):
   let tailId = ident("tail")
   let pId = ident("p")
 
-  var fieldBranches = nnkIfStmt.newTree()
-
-  let tutorialFields = @["joke", "links", "extra", "another"]
-  for f in tutorialFields:
-    let fId = ident(f)
-    fieldBranches.add nnkElifBranch.newTree(
-      quote do: `headNameId` == `f`,
-      quote do:
-        when compiles(`obj`.`fId`):
-          when `obj`.`fId` is Controller:
-            return await runDispatch(`obj`.`fId`, `tailId`, `pId`)
-    )
-
   result = quote do:
     block:
       proc runDispatch(o: auto, s: seq[string], p: Table[string, string]): Future[string] {.async, gcsafe.} =
@@ -39,14 +26,13 @@ macro dispatch*(obj: any, segments: seq[string], params: Table[string, string]):
             return "404 Not Found"
         else:
           let `headNameId` = s[0]
-          let `tailId` = s[1..^1]
-          let `pId` = p
+          let `tailId` = if s.len > 1: s[1..^1] else: @[]
 
-          `fieldBranches`
-
+          # Try explicit handlers
           if o.handlers.contains(`headNameId`):
             return await o.handlers[`headNameId`](p)
 
+          # Fallback to default handler
           if o.handlers.contains("default"):
             var p2 = p
             p2["vpath"] = `headNameId`
@@ -55,6 +41,18 @@ macro dispatch*(obj: any, segments: seq[string], params: Table[string, string]):
           return "404 Not Found"
 
       runDispatch(`obj`, `segments`, `params`)
+
+macro methodDispatch*(obj: any, segments: seq[string], params: Table[string, string]): untyped =
+  result = quote do:
+    block:
+      proc runMethodDispatch(o: auto, s: seq[string], p: Table[string, string]): Future[string] {.async, gcsafe.} =
+        let meth = request.reqMethod.toUpperAscii()
+        if o.handlers.contains(meth):
+          return await o.handlers[meth](p)
+        else:
+          return "405 Method Not Allowed"
+
+      runMethodDispatch(`obj`, `segments`, `params`)
 
 macro exposeHandlers*(obj: Controller, names: varargs[untyped]): untyped =
   let stmts = nnkStmtList.newTree()

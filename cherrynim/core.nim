@@ -33,6 +33,7 @@ type
   Tree* = ref object
     ## A tree of mounted applications.
     apps*: Table[string, Application]
+    grafts*: Table[string, proc (req: Request): Future[Response] {.async, gcsafe.}]
 
   Request* = ref object
     ## Represents an HTTP request in CherryNim.
@@ -70,6 +71,10 @@ var
   response* {.threadvar.}: Response
   session* {.threadvar.}: Table[string, string]
   config* {.threadvar.}: Table[string, string]
+
+proc graft*(tree: Tree, scriptName: string, handler: proc (req: Request): Future[Response] {.async, gcsafe.}) =
+  ## Grafts a raw async handler onto the tree.
+  tree.grafts[scriptName] = handler
 
 proc newRequest*(): Request =
   ## Creates a new Request object with initialized fields.
