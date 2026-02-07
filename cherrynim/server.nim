@@ -1,6 +1,6 @@
 ## HTTP server implementation for CherryNim.
 import asyncdispatch, asynchttpserver, strutils, tables, uri
-import ./core, ./dispatch, ./tools
+import ./core, ./dispatch, ./tools, ./logging, ./wspbus
 
 proc parseMultipart(body: string, contentType: string): Table[string, string] =
   # Very basic multipart parsing for tut09
@@ -19,6 +19,10 @@ proc handleRequest*(req: asynchttpserver.Request): Future[void] {.async, gcsafe.
   ## Handles an incoming HTTP request from asynchttpserver.
   if config.len == 0:
     config = initTable[string, string]()
+  if log == nil:
+    log = LogManager(screen: true)
+  if engine == nil:
+    engine = Bus(listeners: initTable[string, seq[BusCallback]]())
   let path = req.url.path
   let app = tree.apps.getOrDefault("") # Simple for now
 
@@ -80,6 +84,7 @@ proc handleRequest*(req: asynchttpserver.Request): Future[void] {.async, gcsafe.
     response.body = "Internal Server Error: " & e.msg
 
   response.finalize()
+  log.access()
   let statusCode = try: response.status.split(' ')[0].parseInt except: 200
   await req.respond(HttpCode(statusCode), response.body, response.headers)
 

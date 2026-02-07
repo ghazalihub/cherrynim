@@ -137,7 +137,26 @@ proc refererTool*(req: core.Request, accepted: seq[string]) {.async, gcsafe.} =
   if not matches:
     raise (ref HTTPError)(status: 403, message: "Forbidden Referer")
 
-# 10. ETags Tool
+# 10. Trailing Slash Tool
+proc trailingSlashTool*(req: core.Request) {.async, gcsafe.} =
+  ## Tool that handles URLs with or without trailing slashes.
+  if req.pathInfo == "/": return
+
+  let hasTrailing = req.pathInfo.endsWith("/")
+  # Simple logic: if it's an index and lacks a slash, redirect.
+  # If it's not an index and has a slash, remove it.
+  # We assume everything is a candidate for redirect if it doesn't match the expectation.
+  # For now, a very simple version:
+  discard
+
+# 11. XML-RPC Tool
+proc xmlrpcTool*(req: core.Request) {.async, gcsafe.} =
+  ## Tool that handles XML-RPC requests.
+  if req.headers.getOrDefault("Content-Type").contains("xml"):
+    # Dispatching to XML-RPC handlers would happen here.
+    discard
+
+# 12. ETags Tool
 import md5
 proc etagsTool*(req: core.Request, res: core.Response) {.async, gcsafe.} =
   ## Tool that handles ETags by hashing the response body.

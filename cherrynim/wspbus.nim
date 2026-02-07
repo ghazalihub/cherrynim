@@ -7,7 +7,7 @@ type
   Bus* = ref object
     listeners*: Table[string, seq[BusCallback]]
 
-var engine* = Bus(listeners: initTable[string, seq[BusCallback]]())
+var engine* {.threadvar.}: Bus
 
 proc subscribe*(bus: Bus, channel: string, callback: BusCallback) =
   ## Subscribes a callback to a channel.

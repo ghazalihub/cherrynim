@@ -3,6 +3,7 @@ import macros, strutils, asyncdispatch, tables
 import ./core
 
 proc splitPath*(path: string): seq[string] =
+  ## Splits a URL path into its segments.
   if path == "" or path == "/":
     return @[]
   let parts = path.split('/')
@@ -55,14 +56,13 @@ macro dispatch*(obj: any, segments: seq[string], params: Table[string, string]):
 
       runDispatch(`obj`, `segments`, `params`)
 
-macro exposeHandlers*(obj: Controller, names: varargs[string]): untyped =
+macro exposeHandlers*(obj: Controller, names: varargs[untyped]): untyped =
   let stmts = nnkStmtList.newTree()
   for name in names:
     let nameStr = name.strVal
     let nameIdent = ident(nameStr)
     stmts.add quote do:
       `obj`.handlers[`nameStr`] = proc (p: Table[string, string]): Future[string] {.async, gcsafe.} =
-        # Try different parameter sets based on what's in 'p'
         if p.contains("name"):
           when compiles(`obj`.`nameIdent`(p["name"])):
             return await `obj`.`nameIdent`(p["name"])
@@ -79,7 +79,6 @@ macro exposeHandlers*(obj: Controller, names: varargs[string]): untyped =
           when compiles(`obj`.`nameIdent`(p["vpath"])):
             return await `obj`.`nameIdent`(p["vpath"])
 
-        # Fallback to no-arg
         when compiles(`obj`.`nameIdent`()):
           return await `obj`.`nameIdent`()
         else:

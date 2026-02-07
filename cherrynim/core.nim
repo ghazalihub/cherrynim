@@ -117,6 +117,14 @@ proc loadConfigFromFile*(filename: string): Table[string, Table[string, string]]
     discard
   return res
 
+proc checkConfig*(app: Application) =
+  ## Validates common configuration settings.
+  for path, conf in app.config:
+    if conf.contains("tools.sessions.on") and not (conf["tools.sessions.on"] in ["true", "false"]):
+      echo "Warning: tools.sessions.on should be 'true' or 'false' at path ", path
+    if conf.contains("tools.gzip.on") and not (conf["tools.gzip.on"] in ["true", "false"]):
+      echo "Warning: tools.gzip.on should be 'true' or 'false' at path ", path
+
 proc findConfig*(app: Application, path: string, key: string, default: string = ""): string =
   ## Returns the most-specific value for key along path, or default.
   var trail = path
